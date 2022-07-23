@@ -53,7 +53,6 @@ def home():
     return redirect('/login')
 
 
-
 @app.route('/admin')
 def admin():
     token = request.cookies.get('token')
