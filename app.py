@@ -6,19 +6,27 @@ import json
 from werkzeug.utils import secure_filename
 
 
-SECRET = 'secret'
-USERSDB = {}
 UPLOAD_FOLDER = 'templates/uploads'
-ALLOWED_EXTENSIONS = {'html', 'xml'}
+ALLOWED_EXTENSIONS = {'html'}
+USERSDB = 'usersdb.json'
+PUBLIC_KEY = 'public.key'
+PRIVATE_KEY = 'private.key'
 
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 with open("usersdb.json", "r") as f:
     USERSDB = json.load(f)
+
+
+with open(PUBLIC_KEY, 'r') as f:
+    PUBLIC_KEY = f.read()
+
+
+with open(PRIVATE_KEY, 'r') as f:
+    PRIVATE_KEY = f.read()
 
 
 app = Flask(__name__)
@@ -37,8 +45,8 @@ def login():
         password = hashlib.md5(request.form['password'].encode("utf-8")).hexdigest()
         
         if username in USERSDB and USERSDB[username]["password"] == password:
-            payload = {'username': USERSDB[username]["password"], 'type': USERSDB[username]["type"]}
-            token = jwt.encode(payload, SECRET, algorithm='HS256')
+            payload = {'username': USERSDB[username]["username"], 'type': USERSDB[username]["type"]}
+            token = jwt.encode(payload, PRIVATE_KEY, algorithm='RS256')
             response = make_response(redirect('/home'))
             response.set_cookie('token', token, httponly=True)
             return response
@@ -49,7 +57,7 @@ def login():
         token = request.cookies.get('token')
         if token:
             try:
-                jwt.decode(token, SECRET, algorithms=['HS256'])
+                jwt.decode(token, PUBLIC_KEY, algorithms=['RS256', 'HS256'])
                 return redirect('/home')
             except jwt.InvalidTokenError:
                 pass
@@ -68,7 +76,7 @@ def home():
     token = request.cookies.get('token')
     if token:
         try:
-            jwt.decode(token, SECRET, algorithms=['HS256'])
+            jwt.decode(token, PUBLIC_KEY, algorithms=['RS256', 'HS256'])
             return render_template('home.html')
         except jwt.InvalidTokenError:
             pass
@@ -80,7 +88,7 @@ def admin():
     token = request.cookies.get('token')
     if token:
         try:
-            payload = jwt.decode(token, SECRET, algorithms=['HS256'])
+            payload = jwt.decode(token, PUBLIC_KEY, algorithms=['RS256', 'HS256'])
             if payload['type'] == 'admin':
                 return render_template('admin.html')
             else:
@@ -116,8 +124,8 @@ def download_file(name):
 
 @app.route('/public')
 def public():
-    return #TODO
+    return PUBLIC_KEY
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)
