@@ -93,12 +93,12 @@ def admin():
 @app.route('/upload', methods=['POST'])
 def upload():
     if 'file' not in request.files:
-        flash('No file part')
+        #flash('No file part')
         abort(400)
 
     file = request.files['file']
     if file.filename == '':
-        flash('No selected file')
+        #flash('No selected file')
         abort(400)
     
     if file and allowed_file(file.filename):
