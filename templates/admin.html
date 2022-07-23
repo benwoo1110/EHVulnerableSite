@@ -51,10 +51,12 @@
       <section>
         <div class="px-4 py-5 px-md-5 text-center text-lg-start" style="background-color: hsl(0, 0%, 96%)">
             <div class="container">
-                <label class="form-label" for="customFile">Upload File</label>
-                <input type="file" class="form-control" id="customFile" />
+                <form action="/upload" method="POST" enctype="multipart/form-data">
+                    <label class="form-label" for="customFile">Upload File</label>
+                    <input name="file" type="file" class="form-control" id="customFile" />
+                    <input margin="20" type="submit"/>
+                </form>
             </div>
-            
         </div>
       </section>
     
