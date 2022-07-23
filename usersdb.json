@@ -1,0 +1,12 @@
+{
+    "admin": {
+        "username": "admin",
+        "type": "admin",
+        "password": "21232f297a57a5a743894a0e4a801fc3"
+    },
+    "fisher": {
+        "username": "fisher",
+        "type": "user",
+        "password": "c3b355f541a35c480fed0100ce357dc4"
+    }
+}
