@@ -1,4 +1,5 @@
 import os
+import glob
 from flask import Flask, render_template, redirect, request, make_response, abort, flash, url_for, send_from_directory
 import jwt
 import hashlib
@@ -15,6 +16,15 @@ PRIVATE_KEY = 'private.key'
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def auth(token, admin: bool = False):
+    payload = jwt.decode(token, PUBLIC_KEY, algorithms=['RS256', 'HS256'])
+    if payload['username'] not in USERSDB:
+        return None
+    if admin and payload['type'] != 'admin':
+        return None
+    return payload
 
 
 with open("usersdb.json", "r") as f:
@@ -35,6 +45,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/')
 def index():
+    token = request.cookies.get('token')
+    try:
+        payload = auth(token)
+        if payload != None:
+            return redirect(url_for('home'))
+    except jwt.InvalidTokenError:
+        pass
+    
     return render_template('index.html')
 
 
@@ -76,8 +94,9 @@ def home():
     token = request.cookies.get('token')
     if token:
         try:
-            jwt.decode(token, PUBLIC_KEY, algorithms=['RS256', 'HS256'])
-            return render_template('home.html')
+            payload = auth(token)
+            if payload != None:
+                return render_template('home.html', admin=payload['type'] == 'admin')
         except jwt.InvalidTokenError:
             pass
     return redirect('/login')
@@ -88,9 +107,11 @@ def admin():
     token = request.cookies.get('token')
     if token:
         try:
-            payload = jwt.decode(token, PUBLIC_KEY, algorithms=['RS256', 'HS256'])
-            if payload['type'] == 'admin':
-                return render_template('admin.html')
+            payload = auth(token, admin=True)
+            if payload != None:
+                files = glob.glob(UPLOAD_FOLDER + '/*')
+                files = [os.path.basename(file) for file in files]
+                return render_template('admin.html', files=files)
             else:
                 abort(403)
         except jwt.InvalidTokenError:
@@ -98,8 +119,19 @@ def admin():
     return redirect('/login')
 
 
-@app.route('/upload', methods=['POST'])
+@app.route('/file/upload', methods=['POST'])
 def upload():
+    token = request.cookies.get('token')
+    if not token:
+        abort(401)
+    
+    try:
+        payload = auth(token, admin=True)
+        if payload == None:
+            abort(403)
+    except jwt.InvalidTokenError:
+        abort(403)
+
     if 'file' not in request.files:
         #flash('No file part')
         abort(400)
@@ -115,6 +147,25 @@ def upload():
         return redirect(url_for('download_file', name=filename))
 
     abort(400)
+
+
+@app.route('/file/delete', methods=['POST'])
+def delete():
+    token = request.cookies.get('token')
+    if not token:
+        abort(401)
+    
+    try:
+        payload = auth(token, admin=True)
+        if payload == None:
+            abort(403)
+    except jwt.InvalidTokenError:
+        abort(403)
+
+    filename = request.form['file']
+    filename = secure_filename(filename)
+    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    return redirect(url_for('admin'))
 
 
 @app.route('/pages/<name>')
